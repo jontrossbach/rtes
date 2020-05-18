@@ -1,9 +1,12 @@
 #include <Adafruit_CircuitPlayground.h>
 
 float X, Y, Z;
-uint8_t i, recordState; 
+//i is the iterable keeping track of valid
+// gestures that have been performed.
+uint8_t i, recordState;
 
-//rtrc is the ready to read couter
+
+//rtrc is the ready to read counter
 uint8_t rtrc; 
 bool readyToRead;
 
@@ -19,14 +22,14 @@ enum Gesture {
         NO_GESTURE
 };
 
-enum Gesture currentGesture;
-enum Gesture unlockGestures[4];
-
-
+#define KEY_LENGTH 4
 #define GRAVITATIONAL_NOISE 9.50
 #define MOVE_THRESHOLD 6
 #define RESET_THRESHOLD 100
 #define NUM_LEDS 10
+
+enum Gesture currentGesture;
+enum Gesture unlockGestures[KEY_LENGTH];
 
 enum Gesture getGesture(){
         //Get accelerometer values from the circuit playground
@@ -62,25 +65,23 @@ uint8_t getButtonPress(){
         leftButtonPressed = CircuitPlayground.leftButton();
         rightButtonPressed = CircuitPlayground.rightButton();
   
-        //button to reset all gestures i=0;
+        //button to reset all rerecord key sequence i=0;
         //Serial.print("Left Button: ");
         if (leftButtonPressed) {
-                Serial.print("DOWN \n");
+                Serial.print("LEFT DOWN \n");
                 i=0;
         }
-        //button that sets i=4; to reset comparison gestures
+        //button that sets i=4; to reset comparison gestures for rerecording
         //Serial.print("   Right Button: \n");
         if (rightButtonPressed) {
-                Serial.print("DOWN \n");
-                i=4; 
+                Serial.print("RIGHT DOWN \n");
+                i=KEY_LENGTH; 
         }
-        
-        return i;
 }
 
 bool readyToReadDiscriminator(){
          if (rtrc < RESET_THRESHOLD){
-                 rtrc = rtrc + 1;
+                 rtrc++;
                  //Serial.print(rtrc);
                  return 0;
          }
@@ -98,7 +99,7 @@ void unlockLights(int wait){
 }
 
 void wrongGestureIndicator(){
-        CircuitPlayground.setPixelColor(i, 200, 0, 0);
+        CircuitPlayground.setPixelColor(1, 200, 0, 0);
         delay(1000);
         CircuitPlayground.clearPixels();
 }
@@ -111,7 +112,7 @@ void setup() {
         rtrc = RESET_THRESHOLD;
         recordState = 1;
         for(int j=0; j<4; j++){
-                unlockGestures[i] = NO_GESTURE;
+                unlockGestures[j] = NO_GESTURE;
         }
 }
 
@@ -119,19 +120,22 @@ void loop() {
 
         currentGesture = getGesture();
 
-        i = getButtonPress();
+        getButtonPress();
 
-        if (i==8){
+        if (i==2*KEY_LENGTH){
                 unlockLights(1000);
         }
         else if (readyToRead && currentGesture != NO_GESTURE ) {
                 Serial.print("Ready to roll \n");
-                if ( i < 4 ) {
+                // When i is less than KEY_LENGTH we a setting the key
+                if ( i < KEY_LENGTH ) {
                         Serial.print("GESTURE STORED \n");
                         unlockGestures[i] = currentGesture;
                 }
-                else if ( i > 4 && unlockGestures[i-4] != currentGesture ) {
-                        i=4;
+                // When i is greater than KEY_LENGTH then we are trying 
+                // to unlock the lights
+                else if ( i > KEY_LENGTH && unlockGestures[i-KEY_LENGTH] != currentGesture ) {
+                        i=KEY_LENGTH;
                         wrongGestureIndicator();
                 }
                 else {
@@ -150,4 +154,3 @@ void loop() {
         }
                 
 }
-
